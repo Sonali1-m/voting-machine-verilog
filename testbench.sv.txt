@@ -1,0 +1,55 @@
+module voting_machine_tb();
+    reg clk = 0;
+    always #5 clk = ~clk; // 10ns clock
+
+    reg rst, mode_button;
+    reg [3:0] button;
+
+    wire [1:0] selected_candidate;
+    wire [7:0] cand1_vote, cand2_vote, cand3_vote, cand4_vote;
+
+    voting_machine vm(
+        .clk(clk),
+        .rst(rst),
+        .button(button),
+        .mode_button(mode_button),
+        .selected_candidate(selected_candidate),
+        .cand1_vote(cand1_vote),
+        .cand2_vote(cand2_vote),
+        .cand3_vote(cand3_vote),
+        .cand4_vote(cand4_vote)
+    );
+
+    initial begin
+        $dumpfile("dump.vcd");
+        $dumpvars(0, vm);
+
+        rst = 1; mode_button = 0; button = 0;
+        #20 rst = 0;
+
+        // 🗳️ 5 votes for candidate 1
+        repeat(5) begin
+            #10 button = 4'b0001; #20 button = 0;
+        end
+
+        // 🗳️ 2 votes for candidate 2
+        repeat(2) begin
+            #10 button = 4'b0010; #20 button = 0;
+        end
+
+        // 🗳️ 6 votes for candidate 3
+        repeat(6) begin
+            #10 button = 4'b0100; #20 button = 0;
+        end
+
+        // 🗳️ 3 votes for candidate 4
+        repeat(3) begin
+            #10 button = 4'b1000; #20 button = 0;
+        end
+
+        // Switch to tally mode
+        #10 mode_button = 1; #10 mode_button = 0;
+
+        #100 $finish;
+    end
+endmodule

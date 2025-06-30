@@ -1,0 +1,114 @@
+// ----- button_control -----
+module button_control(
+    input clk,
+    input rst,
+    input [3:0] button,
+    output reg [1:0] selected_candidate
+);
+    always @(posedge clk or posedge rst) begin
+        if (rst)
+            selected_candidate <= 0;
+        else begin
+            case (button)
+                4'b0001: selected_candidate <= 2'd0;
+                4'b0010: selected_candidate <= 2'd1;
+                4'b0100: selected_candidate <= 2'd2;
+                4'b1000: selected_candidate <= 2'd3;
+                default: selected_candidate <= 2'd0;
+            endcase
+        end
+    end
+endmodule
+
+// ----- mode_control -----
+module mode_control(
+    input clk,
+    input rst,
+    input mode_button,
+    output reg mode
+);
+    always @(posedge clk or posedge rst) begin
+        if (rst)
+            mode <= 0;
+        else if (mode_button)
+            mode <= ~mode;
+    end
+endmodule
+
+// ----- vote_logger -----
+module vote_logger(
+    input clk,
+    input rst,
+    input mode,
+    input [1:0] candidate_id,
+    input vote_enable,
+    output reg [7:0] vote_count [3:0]
+);
+    integer i;
+    always @(posedge clk or posedge rst) begin
+        if (rst)
+            for (i = 0; i < 4; i = i + 1)
+                vote_count[i] <= 0;
+        else if (mode == 0 && vote_enable)
+            vote_count[candidate_id] <= vote_count[candidate_id] + 1;
+    end
+endmodule
+
+// ----- voting_machine (top module) -----
+module voting_machine(
+    input clk,
+    input rst,
+    input [3:0] button,
+    input mode_button,
+    output [1:0] selected_candidate,
+    output [7:0] cand1_vote,
+    output [7:0] cand2_vote,
+    output [7:0] cand3_vote,
+    output [7:0] cand4_vote
+);
+    reg [3:0] button_prev;
+    reg vote_enable_reg;
+    wire [7:0] vote_count[3:0];
+    wire mode;
+
+    assign vote_enable = vote_enable_reg;
+
+    // edge detect on button
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
+            button_prev <= 0;
+            vote_enable_reg <= 0;
+        end else begin
+            vote_enable_reg <= (button != 0 && button_prev == 0);
+            button_prev <= button;
+        end
+    end
+
+    button_control bc(
+        .clk(clk),
+        .rst(rst),
+        .button(button),
+        .selected_candidate(selected_candidate)
+    );
+
+    mode_control mc(
+        .clk(clk),
+        .rst(rst),
+        .mode_button(mode_button),
+        .mode(mode)
+    );
+
+    vote_logger vl(
+        .clk(clk),
+        .rst(rst),
+        .mode(mode),
+        .candidate_id(selected_candidate),
+        .vote_enable(vote_enable),
+        .vote_count(vote_count)
+    );
+
+    assign cand1_vote = vote_count[0];
+    assign cand2_vote = vote_count[1];
+    assign cand3_vote = vote_count[2];
+    assign cand4_vote = vote_count[3];
+endmodule
